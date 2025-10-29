@@ -8,9 +8,9 @@ app = Flask(__name__)
 # Diese werden später durch echte Daten vom GPS-Tracker ersetzt
 PLACEHOLDER_POSITIONS = [
     {
-        "lat": 52.520008,
-        "lon": 13.404954,
-        "location": "Berlin, Deutschland",
+        "lat": 51.33176012978327, 
+        "lon": 12.610844615278952,
+        "location": "Brandis, Deutschland",
         "speed": 0,
         "altitude": 34,
         "timestamp": datetime.now().isoformat()
