@@ -40,7 +40,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <!-- Öffnet das Einstellungs-Modal -->
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
                             <i class="bi bi-gear-fill"></i> Einstellungen
                         </a>
                     </li>
@@ -124,6 +125,7 @@
                         <button class="btn btn-outline-secondary w-100 mb-2" onclick="toggleTracking()">
                             <i class="bi bi-play-circle"></i> Auto-Tracking
                         </button>
+                        <!-- Limit-Button wurde in die Einstellungen verschoben -->
                         <button class="btn btn-outline-info w-100" onclick="refreshData()">
                             <i class="bi bi-arrow-clockwise"></i> Daten aktualisieren
                         </button>
@@ -137,13 +139,24 @@
                     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="bi bi-map-fill"></i> Live-Karte</h5>
                         <div>
-                            <button class="btn btn-sm btn-outline-light" onclick="toggleSatellite()">
+                            <button class="btn btn-sm btn-outline-light me-2" onclick="toggleSatellite()">
                                 <i class="bi bi-globe"></i> Kartenansicht
                             </button>
+                            <!-- Visual-mode Button wurde in die Einstellungen verschoben -->
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        <div id="map"></div>
+                        <div class="p-2">
+                            <ul class="nav nav-tabs" id="mapViewTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="live-tab" type="button" onclick="switchView('live')">Live</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="import-tab" type="button" onclick="switchView('import')">Importierte Daten</button>
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="map" style="height:600px;"></div>
                     </div>
                 </div>
 
@@ -201,6 +214,60 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
+    <!-- SheetJS (XLSX) - zum Parsen von Excel/CSV im Browser -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    
+        <!-- Settings Modal -->
+        <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="settingsModalLabel"><i class="bi bi-gear-fill"></i> Einstellungen</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <h6>Darstellung</h6>
+                            <p class="text-muted">Wechsel zwischen Punkt-Darstellung und verbundenen Linien.</p>
+                            <button id="toggle-visual-mode" class="btn btn-outline-primary" onclick="toggleVisualMode()">
+                                <i class="bi bi-vector-pen"></i> Linie anzeigen
+                            </button>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <h6>Historie</h6>
+                            <p class="text-muted">Begrenze die Anzahl gespeicherter Punkte (älteste werden entfernt).</p>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button id="toggle-limit-mode" class="btn btn-outline-warning" onclick="toggleLimitMode()">
+                                    <i class="bi bi-filter-circle"></i> Begrenzen: Aus
+                                </button>
+                                <div class="input-group input-group-sm" style="width:120px;">
+                                    <span class="input-group-text">Max</span>
+                                    <input id="max-points-input" type="number" class="form-control" min="1" value="50">
+                                </div>
+                            </div>
+                        </div>
+                        
+                                                <hr>
+                                                <div class="mb-3">
+                                                    <h6>GPS-Datei importieren</h6>
+                                                    <p class="text-muted">Ziehe eine CSV/XLSX-Datei hierher oder wähle sie aus. Die Datei sollte Latitude/Longitude-Spalten enthalten.</p>
+                                                    <div id="gps-drop-area" class="border rounded p-3 text-center" style="background:#f8f9fa;">
+                                                        <div id="gps-import-status" class="mb-2 text-muted">Keine Datei ausgewählt</div>
+                                                        <div>Drop hierher oder <label class="btn btn-sm btn-outline-secondary mb-0"><input id="gps-file-input" type="file" accept=".csv,.xlsx,.xls" style="display:none"> Datei auswählen</label></div>
+                                                        <small class="d-block text-muted mt-2">Erkannt werden Spaltennamen wie: lat, latitude, lon, lng, longitude</small>
+                                                    </div>
+                                                </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
