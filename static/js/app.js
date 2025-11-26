@@ -55,6 +55,9 @@ function initMap() {
         weight: 3,
         opacity: 0.7
     });
+    
+    // Invalidate map size to ensure it renders correctly
+    setTimeout(() => map.invalidateSize(), 100);
 }
 
 // Aktuelle Position vom Server abrufen
@@ -75,54 +78,57 @@ async function updatePosition() {
             Höhe: ${data.altitude} m
         `);
 
-        // Wenn Auto-Tracking aktiviert ist, Karte zentrieren
-        if (trackingEnabled) {
+        // Wenn Auto-Tracking aktiviert ist, Karte zentrieren (nur im Live-Tab)
+        if (trackingEnabled && activeView === 'live') {
             map.setView(newLatLng, map.getZoom());
         }
 
-    // Position zur Live-Historie hinzufügen (speichere Timestamp falls vorhanden)
-    const ts = data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString();
-    livePositionHistory.push({lat: data.lat, lon: data.lon, ts: ts, speed: data.speed});
+    // Position zur Live-Historie hinzufügen nur wenn aktiv im Live-Tab (speichere Timestamp falls vorhanden)
+    // Wenn im Import-Tab: neue Punkte nicht hinzufügen
+    if (activeView === 'live') {
+        const ts = data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString();
+        livePositionHistory.push({lat: data.lat, lon: data.lon, ts: ts, speed: data.speed});
 
-    if (showPolyline) {
-        // Polyline-Modus: aktualisiere und zeige die Live-Polyline
-        livePolyline.setLatLngs(livePositionHistory.map(p => [p.lat, p.lon]));
-        if (!map.hasLayer(livePolyline)) {
-            livePolyline.addTo(map);
-        }
-        // Blende Live-Punkt-Marker aus (sie bleiben im Array erhalten)
-        liveHistoryMarkers.forEach(m => {
-            if (map.hasLayer(m)) map.removeLayer(m);
-        });
-    } else {
-        // Punkte-Modus: entferne Live-Polyline (falls vorhanden) und füge neuen Punkt-Marker hinzu
-        if (map.hasLayer(livePolyline)) {
-            map.removeLayer(livePolyline);
-        }
-
-        const historyMarker = L.circleMarker([data.lat, data.lon], {
-            radius: 4,
-            color: 'blue',
-            fillColor: 'blue',
-            fillOpacity: 0.7
-        }).addTo(map);
-        liveHistoryMarkers.push(historyMarker);
-    }
-
-    // Wenn Begrenzung aktiv ist, entferne ältere Einträge für Live-Historie
-    if (useLimit) {
-        while (livePositionHistory.length > maxPoints) {
-            // Entferne älteste Position
-            livePositionHistory.shift();
-            // Entferne ältesten Marker, falls im Punkte-Modus
-            if (liveHistoryMarkers.length > 0) {
-                const old = liveHistoryMarkers.shift();
-                if (map.hasLayer(old)) map.removeLayer(old);
-            }
-        }
-        // Bei Polyline-Modus sicherstellen, dass Polyline mit dem getrimmten Array übereinstimmt
         if (showPolyline) {
+            // Polyline-Modus: aktualisiere und zeige die Live-Polyline
             livePolyline.setLatLngs(livePositionHistory.map(p => [p.lat, p.lon]));
+            if (!map.hasLayer(livePolyline)) {
+                livePolyline.addTo(map);
+            }
+            // Blende Live-Punkt-Marker aus (sie bleiben im Array erhalten)
+            liveHistoryMarkers.forEach(m => {
+                if (map.hasLayer(m)) map.removeLayer(m);
+            });
+        } else {
+            // Punkte-Modus: entferne Live-Polyline (falls vorhanden) und füge neuen Punkt-Marker hinzu
+            if (map.hasLayer(livePolyline)) {
+                map.removeLayer(livePolyline);
+            }
+
+            const historyMarker = L.circleMarker([data.lat, data.lon], {
+                radius: 4,
+                color: 'blue',
+                fillColor: 'blue',
+                fillOpacity: 0.7
+            }).addTo(map);
+            liveHistoryMarkers.push(historyMarker);
+        }
+
+        // Wenn Begrenzung aktiv ist, entferne ältere Einträge für Live-Historie
+        if (useLimit) {
+            while (livePositionHistory.length > maxPoints) {
+                // Entferne älteste Position
+                livePositionHistory.shift();
+                // Entferne ältesten Marker, falls im Punkte-Modus
+                if (liveHistoryMarkers.length > 0) {
+                    const old = liveHistoryMarkers.shift();
+                    if (map.hasLayer(old)) map.removeLayer(old);
+                }
+            }
+            // Bei Polyline-Modus sicherstellen, dass Polyline mit dem getrimmten Array übereinstimmt
+            if (showPolyline) {
+                livePolyline.setLatLngs(livePositionHistory.map(p => [p.lat, p.lon]));
+            }
         }
     }
 
@@ -182,24 +188,6 @@ async function updateTrackerStatus() {
     }
 }
 
-// Statistiken aktualisieren
-function updateStatistics() {
-    // Max. Geschwindigkeit (simuliert)
-    const maxSpeed = Math.floor(Math.random() * 120) + 30;
-    document.getElementById('stat-max-speed').textContent = maxSpeed;
-
-    // Zurückgelegte Strecke (simuliert)
-    const distance = (Math.random() * 50).toFixed(1);
-    document.getElementById('stat-distance').textContent = distance;
-
-    // Dauer (simuliert)
-    const hours = Math.floor(Math.random() * 5);
-    const minutes = Math.floor(Math.random() * 60);
-    document.getElementById('stat-duration').textContent = `${hours}h ${minutes}m`;
-
-    // Erfasste Punkte
-    document.getElementById('stat-points').textContent = positionHistory.length;
-}
 
 // Hilfsfunktion: Haversine-Distanz in Kilometern
 function haversineKm(aLat, aLon, bLat, bLon) {
@@ -266,8 +254,9 @@ function centerMap() {
 // Auto-Tracking umschalten
 function toggleTracking() {
     trackingEnabled = !trackingEnabled;
-    const button = event.target;
-    
+    const button = document.getElementById('toggle-tracking-btn');
+    if (!button) return;
+
     if (trackingEnabled) {
         button.innerHTML = '<i class="bi bi-pause-circle"></i> Auto-Tracking';
         button.className = 'btn btn-outline-secondary w-100 mb-2';
@@ -474,6 +463,51 @@ function switchView(view) {
         }
     }
 
+    // Get DOM elements by id for reliable selection
+    const sidebar = document.getElementById('sidebar-col');
+    const mapContainer = document.getElementById('map');
+    const mapCol = document.getElementById('map-col');
+    
+    // Adjust layout and visibility based on view
+    if (activeView === 'live') {
+        // Normal layout: sidebar visible + map card beside it
+        if (sidebar) {
+            sidebar.style.display = '';
+        }
+        if (mapCol) {
+            // restore bootstrap grid class
+            mapCol.classList.remove('col-12');
+            if (!mapCol.classList.contains('col-lg-9')) mapCol.classList.add('col-lg-9');
+            // clear any inline sizing that may have been set for import view
+            mapCol.style.maxWidth = '';
+            mapCol.style.flex = '';
+            mapCol.style.width = '';
+        }
+        if (mapContainer) {
+            // clear inline height so CSS default (#map in head) applies
+            mapContainer.style.height = '';
+            // give browser a moment to reflow layout
+            setTimeout(() => map.invalidateSize(), 120);
+        }
+    } else {
+        // Full width: sidebar hidden + map takes full width
+        if (sidebar) {
+            sidebar.style.display = 'none';
+        }
+        if (mapCol) {
+            mapCol.classList.remove('col-lg-9');
+            if (!mapCol.classList.contains('col-12')) mapCol.classList.add('col-12');
+            // ensure map column occupies full width
+            mapCol.style.maxWidth = '';
+            mapCol.style.flex = '';
+            mapCol.style.width = '';
+        }
+        if (mapContainer) {
+            mapContainer.style.height = 'calc(100vh - 300px)';
+            setTimeout(() => map.invalidateSize(), 120);
+        }
+    }
+
     // Determine which layer sets to show/hide
     const livePL = livePolyline;
     const importPL = importPolyline;
@@ -483,6 +517,13 @@ function switchView(view) {
     if (map.hasLayer(importPL)) map.removeLayer(importPL);
     liveHistoryMarkers.forEach(m => { if (map.hasLayer(m)) map.removeLayer(m); });
     importHistoryMarkers.forEach(m => { if (map.hasLayer(m)) map.removeLayer(m); });
+
+    // Show/hide current position marker
+    if (activeView === 'live') {
+        if (!map.hasLayer(marker)) marker.addTo(map);
+    } else {
+        if (map.hasLayer(marker)) map.removeLayer(marker);
+    }
 
     // Show relevant layers
     if (activeView === 'live') {
@@ -564,7 +605,8 @@ function refreshData() {
     updateTrackerStatus();
     
     // Feedback geben
-    const button = event.target;
+    const button = document.getElementById('refresh-data-btn');
+    if (!button) return;
     const originalHTML = button.innerHTML;
     button.innerHTML = '<i class="bi bi-check-circle"></i> Aktualisiert!';
     button.className = 'btn btn-success w-100';
@@ -627,4 +669,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupImportUi();
     // Setze Standard-View
     switchView('live');
+    // Final invalidateSize to ensure map renders at correct dimensions
+    setTimeout(() => map.invalidateSize(), 200);
 });
