@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Tracker - Live Tracking</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Leaflet CSS für OpenStreetMap -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <style>
+        #map {
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-geo-alt-fill"></i> GPS Tracker
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="bi bi-house-fill"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clock-history"></i> Verlauf
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <!-- Öffnet das Einstellungs-Modal -->
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <i class="bi bi-gear-fill"></i> Einstellungen
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar mit Tracker-Informationen -->
+            <div id="sidebar-col" class="col-lg-3 mb-4">
+                <!-- Tracker Status Card -->
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-info-circle-fill"></i> Tracker Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="bi bi-circle-fill text-success"></i> Status:</span>
+                                <span class="badge bg-success" id="status-badge">Online</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="bi bi-battery-full"></i> Batterie:</span>
+                                <span id="battery-level">--</span>
+                            </div>
+                            <div class="progress mb-3" style="height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar" id="battery-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span><i class="bi bi-reception-4"></i> Signal:</span>
+                                <span id="signal-strength">--</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-clock"></i> Letzte Aktualisierung:</span>
+                            </div>
+                            <small class="text-muted" id="last-update">--</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aktuelle Position Card -->
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-geo-alt-fill"></i> Aktuelle Position</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>Koordinaten:</strong><br>
+                            <small class="text-muted">
+                                <i class="bi bi-arrow-up-circle"></i> Lat: <span id="current-lat">--</span><br>
+                                <i class="bi bi-arrow-right-circle"></i> Lon: <span id="current-lon">--</span>
+                            </small>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Geschwindigkeit:</strong><br>
+                            <span id="current-speed" class="fs-4 text-primary">--</span> <small>km/h</small>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Höhe:</strong><br>
+                            <span id="current-altitude">--</span> <small>m</small>
+                        </div>
+                        <div>
+                            <strong>Standort:</strong><br>
+                            <small class="text-muted" id="current-location">--</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schnellaktionen -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="bi bi-lightning-fill"></i> Schnellaktionen</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary w-100 mb-2" onclick="centerMap()">
+                            <i class="bi bi-crosshair"></i> Auf Tracker zentrieren
+                        </button>
+                        <button id="toggle-tracking-btn" class="btn btn-outline-secondary w-100 mb-2" onclick="toggleTracking()">
+                            <i class="bi bi-play-circle"></i> Auto-Tracking
+                        </button>
+                        <!-- Limit-Button wurde in die Einstellungen verschoben -->
+                        <button id="refresh-data-btn" class="btn btn-outline-info w-100" onclick="refreshData()">
+                            <i class="bi bi-arrow-clockwise"></i> Daten aktualisieren
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Karten-Bereich -->
+            <div id="map-col" class="col-lg-9">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-map-fill"></i> Live-Karte</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-light me-2" onclick="toggleSatellite()">
+                                <i class="bi bi-globe"></i> Kartenansicht
+                            </button>
+                            <!-- Visual-mode Button wurde in die Einstellungen verschoben -->
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="p-2">
+                            <ul class="nav nav-tabs" id="mapViewTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="live-tab" type="button" onclick="switchView('live')">Live</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="import-tab" type="button" onclick="switchView('import')">Importierte Daten</button>
+                                </li>
+                            </ul>
+                        </div>
+                        <div id="map" style="height:600px;"></div>
+                    </div>
+                </div>
+
+                <!-- Statistiken -->
+                <div class="row mt-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center shadow-sm">
+                            <div class="card-body">
+                                <i class="bi bi-speedometer2 text-primary fs-1"></i>
+                                <h3 class="mt-2 mb-0" id="stat-max-speed">0</h3>
+                                <small class="text-muted">Max. Geschwindigkeit (km/h)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center shadow-sm">
+                            <div class="card-body">
+                                <i class="bi bi-signpost-2 text-success fs-1"></i>
+                                <h3 class="mt-2 mb-0" id="stat-distance">0</h3>
+                                <small class="text-muted">Zurückgelegte Strecke (km)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center shadow-sm">
+                            <div class="card-body">
+                                <i class="bi bi-clock text-warning fs-1"></i>
+                                <h3 class="mt-2 mb-0" id="stat-duration">0h 0m</h3>
+                                <small class="text-muted">Dauer</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card text-center shadow-sm">
+                            <div class="card-body">
+                                <i class="bi bi-geo text-info fs-1"></i>
+                                <h3 class="mt-2 mb-0" id="stat-points">0</h3>
+                                <small class="text-muted">Erfasste Punkte</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3 mt-5">
+        <p class="mb-0">&copy; 2025 GPS Tracker Dashboard | <i class="bi bi-code-slash"></i> Entwickelt mit Python & Flask</p>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- SheetJS (XLSX) - zum Parsen von Excel/CSV im Browser -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    
+        <!-- Settings Modal -->
+        <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="settingsModalLabel"><i class="bi bi-gear-fill"></i> Einstellungen</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <h6>Darstellung</h6>
+                            <p class="text-muted">Wechsel zwischen Punkt-Darstellung und verbundenen Linien.</p>
+                            <button id="toggle-visual-mode" class="btn btn-outline-primary" onclick="toggleVisualMode()">
+                                <i class="bi bi-vector-pen"></i> Linie anzeigen
+                            </button>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <h6>Historie</h6>
+                            <p class="text-muted">Begrenze die Anzahl gespeicherter Punkte (älteste werden entfernt).</p>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button id="toggle-limit-mode" class="btn btn-outline-warning" onclick="toggleLimitMode()">
+                                    <i class="bi bi-filter-circle"></i> Begrenzen: Aus
+                                </button>
+                                <div class="input-group input-group-sm" style="width:120px;">
+                                    <span class="input-group-text">Max</span>
+                                    <input id="max-points-input" type="number" class="form-control" min="1" value="50">
+                                </div>
+                            </div>
+                        </div>
+                        
+                                                <hr>
+                                                <div class="mb-3">
+                                                    <h6>GPS-Datei importieren</h6>
+                                                    <p class="text-muted">Ziehe eine CSV/XLSX-Datei hierher oder wähle sie aus. Die Datei sollte Latitude/Longitude-Spalten enthalten.</p>
+                                                    <div id="gps-drop-area" class="border rounded p-3 text-center" style="background:#f8f9fa;">
+                                                        <div id="gps-import-status" class="mb-2 text-muted">Keine Datei ausgewählt</div>
+                                                        <div>Drop hierher oder <label class="btn btn-sm btn-outline-secondary mb-0"><input id="gps-file-input" type="file" accept=".csv,.xlsx,.xls" style="display:none"> Datei auswählen</label></div>
+                                                        <small class="d-block text-muted mt-2">Erkannt werden Spaltennamen wie: lat, latitude, lon, lng, longitude</small>
+                                                    </div>
+                                                </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
