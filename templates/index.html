@@ -222,6 +222,8 @@
     
     <!-- SheetJS (XLSX) - zum Parsen von Excel/CSV im Browser -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- JSZip - zum Auslesen von .docx (Word) Dateien im Browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
         <!-- Settings Modal -->
         <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
@@ -262,8 +264,8 @@
                                                     <p class="text-muted">Ziehe eine CSV/XLSX-Datei hierher oder wähle sie aus. Die Datei sollte Latitude/Longitude-Spalten enthalten.</p>
                                                     <div id="gps-drop-area" class="border rounded p-3 text-center" style="background:#f8f9fa;">
                                                         <div id="gps-import-status" class="mb-2 text-muted">Keine Datei ausgewählt</div>
-                                                        <div>Drop hierher oder <label class="btn btn-sm btn-outline-secondary mb-0"><input id="gps-file-input" type="file" accept=".csv,.xlsx,.xls" style="display:none"> Datei auswählen</label></div>
-                                                        <small class="d-block text-muted mt-2">Erkannt werden Spaltennamen wie: lat, latitude, lon, lng, longitude</small>
+                                                        <div>Drop hierher oder <label class="btn btn-sm btn-outline-secondary mb-0"><input id="gps-file-input" type="file" accept=".csv,.xlsx,.xls,.docx" style="display:none"> Datei auswählen</label></div>
+                                                        <small class="d-block text-muted mt-2">Erkannt werden Spaltennamen wie: lat, latitude, lon, lng, longitude. Unterstützt: CSV, XLSX, XLS und DOCX (Text mit Koordinaten).</small>
                                                     </div>
                                                 </div>
                     </div>

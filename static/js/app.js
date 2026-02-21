@@ -283,6 +283,64 @@ function detectLatLonKeys(row) {
     return [latKey, lonKey];
 }
 
+// Parse plain-text GPS logs like: "10:53:24 | 51.361766 | 12.617396 | 7 | 2.7 | 1"
+function parsePlainTextData(text, filename) {
+    const status = document.getElementById('gps-import-status');
+    const lines = (text || '').split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    const points = [];
+    const today = new Date();
+
+    function timeToISO(timeStr) {
+        const parts = timeStr.split(':').map(p => parseInt(p, 10));
+        if (parts.length < 2 || parts.some(isNaN)) return null;
+        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parts[0] || 0, parts[1] || 0, parts[2] || 0);
+        return d.toISOString();
+    }
+
+    for (const line of lines) {
+        // Prefer pipe-separated tokens if present
+        let tokens = line.includes('|') ? line.split('|').map(t => t.trim()) : line.split(/\s+/).map(t => t.trim());
+        if (tokens.length === 0) continue;
+
+        // If line starts with a time like HH:MM:SS, use token indices
+        const first = tokens[0];
+        let ts = null;
+        const timeMatch = first.match(/^\d{1,2}:\d{2}:\d{2}$/);
+        if (timeMatch) {
+            ts = timeToISO(first);
+            // Expect lat in tokens[1], lon in tokens[2]
+            const latRaw = tokens[1] || '';
+            const lonRaw = tokens[2] || '';
+            const lat = parseFloat(latRaw.replace(',', '.'));
+            const lon = parseFloat(lonRaw.replace(',', '.'));
+            const speed = tokens[3] ? parseFloat(tokens[3].replace(',', '.')) : null;
+            if (!isNaN(lat) && !isNaN(lon)) {
+                points.push([lat, lon, ts, speed]);
+                continue;
+            }
+        }
+
+        // Fallback: extract floats from the line and find first lat/lon pair in range
+        const numRe = /-?\d+[.,]?\d*/g;
+        const rawNums = line.match(numRe) || [];
+        const nums = rawNums.map(s => parseFloat(s.replace(',', '.'))).filter(n => !isNaN(n));
+        for (let i = 0; i < nums.length - 1; i++) {
+            const lat = nums[i];
+            const lon = nums[i + 1];
+            if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                points.push([lat, lon, ts, null]);
+                break;
+            }
+        }
+    }
+
+    if (points.length === 0) {
+        if (status) status.textContent = 'Keine Koordinaten im Text gefunden';
+        return;
+    }
+    handleImportedPoints(points);
+}
+
 function handleImportedPoints(points) {
     // points: array of [lat, lon]
     if (!points || points.length === 0) return;
@@ -338,6 +396,48 @@ function parseFile(file) {
     reader.onload = function(e) {
         let data = e.target.result;
         let workbook;
+        // Decide based on filename / type: support .txt, .docx (Word), and spreadsheets
+        const name = (file.name || '').toLowerCase();
+
+        // Plain text files: decode and parse lines
+        if (name.endsWith('.txt') || (file.type && file.type.startsWith('text'))) {
+            try {
+                const txt = (new TextDecoder()).decode(data);
+                parsePlainTextData(txt, file.name);
+            } catch (err) {
+                console.error('Text decode error', err);
+                if (status) status.textContent = 'Fehler beim Lesen der Textdatei';
+            }
+            return;
+        }
+
+        // DOCX: extract document.xml and parse text lines
+        if (name.endsWith('.docx')) {
+            if (status) status.textContent = `Lese DOCX ${file.name} ...`;
+            if (typeof JSZip === 'undefined') {
+                if (status) status.textContent = 'JSZip nicht verfügbar; kann DOCX nicht lesen';
+                return;
+            }
+            JSZip.loadAsync(data).then(zip => {
+                const docFile = zip.file('word/document.xml');
+                if (!docFile) throw new Error('word/document.xml nicht gefunden');
+                return docFile.async('string');
+            }).then(xmlStr => {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(xmlStr, 'application/xml');
+                const texts = xml.getElementsByTagName('w:t');
+                let fullText = '';
+                for (let i = 0; i < texts.length; i++) {
+                    fullText += (texts[i].textContent || '') + '\n';
+                }
+                parsePlainTextData(fullText, file.name);
+            }).catch(err => {
+                console.error('DOCX parse error', err);
+                if (status) status.textContent = 'Fehler beim Lesen der DOCX-Datei';
+            });
+            return;
+        }
+
         try {
             // ArrayBuffer works for xlsx and csv
             workbook = XLSX.read(data, {type: 'array'});
@@ -371,10 +471,10 @@ function parseFile(file) {
         const timeCandidates = ['time','timestamp','datetime','date','time_utc','ts'];
         const speedCandidates = ['speed','velocity'];
         let timeKey = null, speedKey = null;
-        for (let i = 0; i < lower.length; i++) {
-            const k = lower[i];
-            if (!timeKey && timeCandidates.some(c => k.includes(c))) timeKey = keys[i];
-            if (!speedKey && speedCandidates.some(c => k.includes(c))) speedKey = keys[i];
+        for (let i2 = 0; i2 < lower.length; i2++) {
+            const k = lower[i2];
+            if (!timeKey && timeCandidates.some(c => k.includes(c))) timeKey = keys[i2];
+            if (!speedKey && speedCandidates.some(c => k.includes(c))) speedKey = keys[i2];
         }
 
         // Build points array: [lat, lon, ts?, speed?]
