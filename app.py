@@ -1,8 +1,18 @@
 from flask import Flask, render_template, jsonify
 from datetime import datetime
 import random
+import sys
+import os
 
-app = Flask(__name__)
+# When packaged by PyInstaller with --onefile, resources are extracted to
+# a temporary folder available as sys._MEIPASS. Detect that and point Flask
+# to the extracted `templates` and `static` folders so render_template works.
+if getattr(sys, "frozen", False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.dirname(__file__)
+
+app = Flask(__name__, template_folder=os.path.join(base_path, 'templates'), static_folder=os.path.join(base_path, 'static'))
 
 # Placeholder GPS-Daten
 # Diese werden später durch echte Daten vom GPS-Tracker ersetzt
@@ -71,4 +81,4 @@ def get_tracker_status():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='127.0.0.1', port=5000)

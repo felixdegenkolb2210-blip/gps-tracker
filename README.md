@@ -1,3 +1,69 @@
+# GPS Tracker — Einzel-EXE Startanleitung
+
+Kurz: die fertige, einzelne EXE liegt in `dist\gps-tracker.exe`. Doppelklicke sie, um den lokalen Webserver zu starten und die Web-App im Browser zu öffnen.
+
+Inhalt dieses Repos (relevante Dateien):
+- `dist\gps-tracker.exe` — Einzel-EXE (Server + Browser-Launcher). Wenn vorhanden: `dist\start-gps.exe`, `dist\start-gps-launcher.exe` (ältere Varianten).
+- `run_app.bat`, `run_app.ps1` — einfache Launcher-Skripte.
+- `bundle.py` — das Startskript, das in der EXE gebündelt wurde.
+
+Starten (Explorer)
+---------------
+1. Öffne den Ordner auf dem USB‑Stick oder dem PC, z. B. `D:\gps-tracker\dist`.
+2. Doppelklicke `gps-tracker.exe`.
+3. Der Standardbrowser sollte sich öffnen unter `http://127.0.0.1:5000`.
+
+Starten (Terminal) — sichtbar mit Logs
+-----------------------------------
+1. Öffne PowerShell oder Eingabeaufforderung.
+2. Wechsel in den `dist`-Ordner:
+```
+cd "C:\Users\felix\Desktop\Coding\Schule\gps-tracker\dist"
+```
+3. Starte die EXE, die Server-Logs zeigt (falls vorhanden):
+```
+.\start-gps.exe
+# oder falls du die neue Einzel-EXE nutzt:
+.\gps-tracker.exe
+```
+4. Im Browser: `http://127.0.0.1:5000`
+
+Stoppen
+-------
+Option A — falls du das App-Fenster (Konsole) siehst:
+- Drücke `Ctrl+C` im Terminal, in dem die EXE läuft.
+
+Option B — über PowerShell (wenn EXE im Hintergrund läuft):
+1. Finde heraus, welcher Prozess auf Port 5000 lauscht:
+```powershell
+netstat -ano | findstr ":5000"
+```
+2. Merke die PID (rechte Spalte) und beende sie:
+```powershell
+Stop-Process -Id <PID> -Force
+```
+
+Option C — Task-Manager
+- Öffne Task-Manager (Strg+Shift+Esc) → Reiter "Details" → suche `gps-tracker.exe` oder `start-gps.exe` → Rechtsklick → "Task beenden".
+
+Wichtiges zu Verteilung auf anderen PCs (USB-Stick)
+-----------------------------------------------
+- Kopiere den kompletten `dist`-Ordner oder mindestens die `gps-tracker.exe` auf den Stick.
+- Die EXE ist für Windows 64-bit gebaut; sie läuft nicht auf Linux/macOS.
+- Auf fremden Rechnern kann Windows-SmartScreen oder Antivirus beim ersten Start warnen — der Nutzer muss eventuell „Trotzdem ausführen“ erlauben.
+
+Fehlerbehebung
+--------------
+- Wenn beim Start nichts passiert: starte `gps-tracker.exe` aus einer PowerShell, dann siehst du Fehlermeldungen.
+- Wenn der Browser nur Quelltext anzeigt: vergewissere dich, dass du tatsächlich die URL `http://127.0.0.1:5000` im Browser nutzt, nicht die `index.html` per `file://`.
+
+Kontakt/weitere Anpassungen
+---------------------------
+Wenn du möchtest, kann ich:
+- ein Icon für die EXE setzen,
+- die EXE minimiert starten,
+- die App sicherer für Netzzugriff (Waitress + Firewall-Docs) bauen,
+- oder ein ZIP mit der finalen `dist`-Struktur erzeugen.
 # GPS Tracker Dashboard
 
 Ein professionelles Web-Dashboard für GPS-Tracking mit Python Flask, Bootstrap 5 und OpenStreetMap.
