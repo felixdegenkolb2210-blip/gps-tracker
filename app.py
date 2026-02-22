@@ -3,6 +3,7 @@ from datetime import datetime
 import random
 import sys
 import os
+import csv
 
 # When packaged by PyInstaller with --onefile, resources are extracted to
 # a temporary folder available as sys._MEIPASS. Detect that and point Flask
@@ -14,20 +15,83 @@ else:
 
 app = Flask(__name__, template_folder=os.path.join(base_path, 'templates'), static_folder=os.path.join(base_path, 'static'))
 
-# Placeholder GPS-Daten
-# Diese werden später durch echte Daten vom GPS-Tracker ersetzt
-PLACEHOLDER_POSITIONS = [
-    {
-        "lat": 51.33176012978327, 
-        "lon": 12.610844615278952,
-        "location": "Brandis, Deutschland",
-        "speed": 0,
-        "altitude": 34,
-        "timestamp": datetime.now().isoformat()
-    }
-]
+# GPS-Daten aus CSV-Datei laden
+def load_gps_data_from_csv():
+    """Lädt GPS-Daten aus der CSV-Datei"""
+    csv_path = r"c:\Users\felix\Desktop\Coding\Schule\GPS-Testdaten\testdaten Spieler .csv"
+    positions = []
+    
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter=';')
+            header_found = False
 
-current_position = PLACEHOLDER_POSITIONS[0].copy()
+            for row in reader:
+                
+                # Überspringe leere Zeilen
+                if not row or not row[0].strip():
+                    continue
+                
+                # Überspringe Header-Zeile
+                if 'UTC-Time' in row[0]:
+                    header_found = True
+                    continue
+                
+                # Verarbeite Datenzeilen
+                if header_found and len(row) >= 3:
+                    try:
+                        # Entferne Anführungszeichen und verarbeite Dezimalkommas
+                        row = [cell.replace('|', ';') for cell in row]
+                        time_str = row[0].strip().strip('"')
+                        lat_str = row[1].strip().strip('"').replace(',', '.')
+                        lon_str = row[2].strip().strip('"').replace(',', '.')
+                        
+                        lat = float(lat_str)
+                        lon = float(lon_str)
+                        
+                        positions.append({
+                            "lat": lat,
+                            "lon": lon,
+                            "location": "GPS-Testdaten",
+                            "speed": 0,
+                            "altitude": 0,
+                            "timestamp": time_str
+                        })
+                    except (ValueError, IndexError):
+                        continue
+    except FileNotFoundError:
+        print(f"CSV-Datei nicht gefunden: {csv_path}")
+        return [
+            {
+                "lat": 51.33176012978327, 
+                "lon": 12.610844615278952,
+                "location": "Brandis, Deutschland",
+                "speed": 0,
+                "altitude": 34,
+                "timestamp": datetime.now().isoformat()
+            }
+        ]
+    
+    return positions if positions else [
+        {
+            "lat": 51.33176012978327, 
+            "lon": 12.610844615278952,
+            "location": "Brandis, Deutschland",
+            "speed": 0,
+            "altitude": 34,
+            "timestamp": datetime.now().isoformat()
+        }
+    ]
+
+POSITION_HISTORY = load_gps_data_from_csv()
+current_position = POSITION_HISTORY[0].copy() if POSITION_HISTORY else {
+    "lat": 51.33176012978327, 
+    "lon": 12.610844615278952,
+    "location": "Brandis, Deutschland",
+    "speed": 0,
+    "altitude": 34,
+    "timestamp": datetime.now().isoformat()
+}
 
 
 @app.route('/')
