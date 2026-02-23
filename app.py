@@ -18,7 +18,7 @@ app = Flask(__name__, template_folder=os.path.join(base_path, 'templates'), stat
 # GPS-Daten aus CSV-Datei laden
 def load_gps_data_from_csv():
     """Lädt GPS-Daten aus der CSV-Datei"""
-    csv_path = r"c:\Users\felix\Desktop\Coding\Schule\GPS-Testdaten\testdaten Spieler .csv"
+    csv_path = os.path.join(base_path, 'gps_data.csv')
     positions = []
     
     try:
